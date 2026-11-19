@@ -1,0 +1,46 @@
+name: Build KExp v1 APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download uploaded project
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Unzip KExp v1 source
+        run: unzip -q KryptekPn_Expenses_v1_AndroidStudio.zip -d workspace
+
+      - name: Generate installable debug APK
+        working-directory: workspace/KryptekPn_Expenses_v1
+        run: gradle --no-daemon assembleDebug
+
+      - name: Save APK for download
+        uses: actions/upload-artifact@v4
+        with:
+          name: KExp-v1-APK
+          path: workspace/KryptekPn_Expenses_v1/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
