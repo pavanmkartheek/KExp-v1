@@ -9,6 +9,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+
     steps:
       - name: Download uploaded project
         uses: actions/checkout@v4
@@ -19,13 +20,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools'
-
-      - name: Install Android SDK 35
-        run: sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0' 'platform-tools'
+      # GitHub's ubuntu-24.04 runner already includes Android SDK 35.
+      # Avoid android-actions/setup-android@v3 and the removed SDK 'tools' package.
+      - name: Verify Android SDK 35
+        shell: bash
+        run: |
+          set -e
+          echo "Android SDK: ${ANDROID_HOME:-not set}"
+          test -d "$ANDROID_HOME/platforms/android-35" || {
+            echo 'ERROR: Android API 35 is missing on this runner.'
+            exit 1
+          }
+          test -d "$ANDROID_HOME/build-tools/35.0.0" || {
+            echo 'ERROR: Android Build Tools 35.0.0 is missing on this runner.'
+            exit 1
+          }
+          echo 'Android SDK 35 and Build Tools 35.0.0 are available.'
 
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
@@ -33,11 +43,15 @@ jobs:
           gradle-version: '8.9'
 
       - name: Unzip KExp v1 source
-        run: unzip -q KryptekPn_Expenses_v1_AndroidStudio.zip -d workspace
+        shell: bash
+        run: |
+          set -e
+          unzip -q KryptekPn_Expenses_v1_AndroidStudio.zip -d workspace
+          test -f workspace/KryptekPn_Expenses_v1/app/build.gradle
 
       - name: Generate installable debug APK
         working-directory: workspace/KryptekPn_Expenses_v1
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
 
       - name: Save APK for download
         uses: actions/upload-artifact@v4
